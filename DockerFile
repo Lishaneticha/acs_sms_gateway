@@ -1,0 +1,19 @@
+FROM node:latest
+
+LABEL maintainer="acs Developer"
+
+RUN mkdir -p /acs-sms-gateway
+RUN rm -r /acs-sms-gateway
+RUN mkdir -p /acs-sms-gateway
+
+RUN npm install nodemon -g
+
+WORKDIR /acs-sms-gateway
+RUN rm -rf node_modules
+COPY package.json /acs-sms-gateway
+RUN npm install
+
+COPY . .
+
+EXPOSE 23002
+EXPOSE 6379
