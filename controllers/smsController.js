@@ -1,4 +1,4 @@
-var config = require('../config') 
+var config = require('../config/smsConfig') 
 var smpp = require("smpp");
 
 exports.sendSMS = function (recipient, message){
