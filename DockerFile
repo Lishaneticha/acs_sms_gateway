@@ -15,5 +15,5 @@ RUN npm install
 
 COPY . .
 
-EXPOSE 23002
+EXPOSE 4004
 EXPOSE 6379

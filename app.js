@@ -1,7 +1,7 @@
 require("dotenv").config();
 require("./config/database").connect();
 const express = require("express");
-const { RABBIT_URI } = "amqp://localhost" || process.env;
+const { RABBIT_URI } = process.env;
 const { API_PORT } = process.env;
 const port = process.env.PORT || API_PORT;
 const controller = require('./controllers/smsController');
