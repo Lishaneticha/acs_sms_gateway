@@ -102,7 +102,7 @@ app.get("/init",async (req,res)=>{
     }
 })
 
-app.get("/sendSMS",auth,async (req,res)=>{
+app.get("/sendSMS",async (req,res)=>{
     var result = null
     try{
         //console.log("aid: "+req.query.aid, "pin: "+req.query.pin, "mnumber: "+req.query.mnumber, "signature: "+req.query.signature, "message: "+req.query.message)
@@ -122,7 +122,7 @@ app.get("/sendSMS",auth,async (req,res)=>{
     if(result) res.json({"responsecode": "0","response": result})
 })
 
-app.post("/sendSMS",auth,async (req,res)=>{
+app.post("/sendSMS",async (req,res)=>{
     var result = null
     try{
         console.log(req.body)
@@ -141,7 +141,7 @@ app.post("/sendSMS",auth,async (req,res)=>{
     if(result) res.json({"responsecode": "0","response": result})
 })
 
-app.post("/sendBulkSMS",auth, async (req, res)=>{
+app.post("/sendBulkSMS", async (req, res)=>{
     var result = null
     try{
         console.log(req.body)
@@ -251,8 +251,12 @@ app.post("/login", async (req, res) => {
 
 app.post("/smsLog", async (req, res) => {
   try {
+    var status_ = req.body.status
+    var start = new Date(req.body.start+'T00:00:00.000Z').toISOString()
+    var end = new Date(req.body.end+'T23:59:59.999Z').toISOString()
+
     // Validate if user exist in our database
-    const smsLog = await SmsLog.find({});
+    const smsLog = await SmsLog.find({status: status_, created_at: { $gte: start, $lte: end }});
     if (smsLog && smsLog.length) {
       res.status(200).json(smsLog);
     }else{

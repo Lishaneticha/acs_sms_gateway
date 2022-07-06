@@ -12,10 +12,13 @@ services:
       - "15672:15672"
       - "15671:15671"
       - "5672:5672"
-    volumes:
-      - ./rabbitmq/lib:/var/lib/rabbitmq
     networks:
       - sms-network
+    healthcheck:
+      test: [ "CMD", "nc", "-z", "localhost", "5672" ]
+      interval: 5s
+      timeout: 15s
+      retries: 1
 
   app:
     build: 
@@ -28,7 +31,7 @@ services:
       - ./:/acs-sms-gateway
       - /acs-sms-gateway/node_modules
     ports:
-      - "4004:4004"
+      - "23002:23002"
     depends_on:
         - rabbitmq
     restart: always
