@@ -27,9 +27,6 @@ services:
     container_name: acs-sms-gateway
     networks:
       - sms-network
-    volumes:
-      - ./:/acs-sms-gateway
-      - /acs-sms-gateway/node_modules
     ports:
       - "23002:23002"
     depends_on:

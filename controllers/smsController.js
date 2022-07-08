@@ -51,8 +51,11 @@ exports.sendSMS = function (recipient, message){
                                 short_message: { message:part.content } , 
                             }, function(pdu) {
                                 if (pdu.command_status == 0) {
+                                    i++
                                     console.log("message sent OK",recipient, part.content)
                                     // res.json({"responsecode": "0","response": "Success"})
+                                    var retry_at = null
+                                    controller.createSMSLog(recipient, message, 0, retry_at, info.parts.length)
                                     return true
                                 } else {
                                     console.log("PDU")
@@ -60,7 +63,7 @@ exports.sendSMS = function (recipient, message){
                                     console.log("message sending failed",recipient);
                                     // res.json({"responsecode": "1","response": "Failed"})
                                     var retry_at = moment(new Date()).add(30, 'm').toDate();
-                                    controller.createSMSLog(recipient, message, 1, retry_at)
+                                    controller.createSMSLog(recipient, message, 1, retry_at, info.parts.length)
                                     session.destroy();
                                     return true
                                     // process.exit()
@@ -76,7 +79,10 @@ exports.sendSMS = function (recipient, message){
                                 if (pdu.command_status == 0) {
                                     i++
                                     console.log("message sent OK",recipient, part.content)
-                                    // res.json({"responsecode": "0","response": "Success"})
+                                    if(i == info.parts.length){
+                                        var retry_at = null
+                                        controller.createSMSLog(recipient, message, 0, retry_at, info.parts.length)
+                                    }
                                     return true
                                 } else {
                                     i++
@@ -86,7 +92,7 @@ exports.sendSMS = function (recipient, message){
                                     // res.json({"responsecode": "1","response": "Failed"})
                                     if(i == info.parts.length) {
                                         var retry_at = moment(new Date()).add(30, 'm').toDate();
-                                        controller.createSMSLog(recipient, message, 1, retry_at)
+                                        controller.createSMSLog(recipient, message, 1, retry_at, info.parts.length)
                                     }
                                     session.destroy();
                                     return true
@@ -98,16 +104,14 @@ exports.sendSMS = function (recipient, message){
                         session.on('deliver_sm', function(pdu) {
                             // console.log(pdu)
                             var retry_at = null
-                            if (pdu.esm_class == 4) {
-                                // var shortMessage = pdu.short_message;
-                                console.log('Received DR ...');
-                                session.send(pdu.response());
-                                controller.createSMSLog(recipient, part.content, 3, retry_at)
-                            }else{
-                                controller.createSMSLog(recipient, part.content, 0, retry_at)
+                            if(i == info.parts.length){
+                                if (pdu.esm_class == 4) {
+                                    // var shortMessage = pdu.short_message;
+                                    console.log('Received DR ...');
+                                    session.send(pdu.response());
+                                    controller.createSMSLog(recipient, message, 3, retry_at, info.parts.length)
+                                }
                             }
-
-                            session.destroy();
                         });
 
                         session.on('error', function(e) {
@@ -120,7 +124,7 @@ exports.sendSMS = function (recipient, message){
                                 // res.json({"responsecode": "1","response": e.code})
                                 if(i == info.parts.length) {
                                     var retry_at = moment(new Date()).add(30, 'm').toDate();
-                                    controller.createSMSLog(recipient, message, 1, retry_at)
+                                    controller.createSMSLog(recipient, message, 1, retry_at, info.parts.length)
                                 }
                             } else if (e.code === "ECONNREFUSED") {
                                 // CONNECTION REFUSED
@@ -129,7 +133,7 @@ exports.sendSMS = function (recipient, message){
                                 // res.json({"responsecode": "1","response": e.code})
                                 if(i == info.parts.length) {
                                     var retry_at = moment(new Date()).add(30, 'm').toDate();
-                                    controller.createSMSLog(recipient, message, 1, retry_at)
+                                    controller.createSMSLog(recipient, message, 1, retry_at, info.parts.length)
                                 }
                             } else {
                                 // OTHER ERROR
@@ -138,7 +142,7 @@ exports.sendSMS = function (recipient, message){
                                 // res.json({"responsecode": "1","response": e.code})
                                 if(i == info.parts.length) {
                                     var retry_at = moment(new Date()).add(30, 'm').toDate();
-                                    controller.createSMSLog(recipient, message, 1, retry_at)
+                                    controller.createSMSLog(recipient, message, 1, retry_at, info.parts.length)
                                 }
                             }
                         });
@@ -148,14 +152,14 @@ exports.sendSMS = function (recipient, message){
                         i++
                         if(i == info.parts.length) {
                             var retry_at = moment(new Date()).add(30, 'm').toDate();
-                            controller.createSMSLog(recipient, message, 1, retry_at)
+                            controller.createSMSLog(recipient, message, 1, retry_at, info.parts.length)
                         }
                         session.destroy();
                         return false
                     }
                 }catch(ex){
                     var retry_at = moment(new Date()).add(30, 'm').toDate();
-                    controller.createSMSLog(recipient, message, 1, retry_at)
+                    controller.createSMSLog(recipient, message, 1, retry_at, info.parts.length)
                     console.log(ex)
                     return false
                 }
@@ -163,13 +167,13 @@ exports.sendSMS = function (recipient, message){
                 
             }else{
                 var retry_at = moment(new Date()).add(30, 'm').toDate();
-                controller.createSMSLog(recipient, message, 1, retry_at)
+                controller.createSMSLog(recipient, message, 1, retry_at, info.parts.length)
                 return false
             }
         });
     } catch (ex) {
         var retry_at = moment(new Date()).add(30, 'm').toDate();
-        controller.createSMSLog(recipient, message, 1, retry_at)
+        controller.createSMSLog(recipient, message, 1, retry_at, info.parts.length)
         console.log(ex)
         return false
     }
