@@ -1,7 +1,7 @@
 require("dotenv").config();
 require("./config/database").connect();
 const express = require("express");
-const { RABBIT_URI } = "amqp://localhost" || process.env;
+const { RABBIT_URI } = process.env;
 const { API_PORT } = process.env;
 const port = process.env.PORT || API_PORT;
 const controller = require('./controllers/smsController');
@@ -10,6 +10,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
 const User = require("./model/user");
+const SmsLog = require("./model/smsLog");
 const auth = require("./middleware/auth");
 
 const app = express();
@@ -101,7 +102,7 @@ app.get("/init",async (req,res)=>{
     }
 })
 
-app.get("/sendSMS",auth,async (req,res)=>{
+app.get("/sendSMS",async (req,res)=>{
     var result = null
     try{
         //console.log("aid: "+req.query.aid, "pin: "+req.query.pin, "mnumber: "+req.query.mnumber, "signature: "+req.query.signature, "message: "+req.query.message)
@@ -121,7 +122,7 @@ app.get("/sendSMS",auth,async (req,res)=>{
     if(result) res.json({"responsecode": "0","response": result})
 })
 
-app.post("/sendSMS",auth,async (req,res)=>{
+app.post("/sendSMS",async (req,res)=>{
     var result = null
     try{
         console.log(req.body)
@@ -140,7 +141,7 @@ app.post("/sendSMS",auth,async (req,res)=>{
     if(result) res.json({"responsecode": "0","response": result})
 })
 
-app.post("/sendBulkSMS",auth, async (req, res)=>{
+app.post("/sendBulkSMS", async (req, res)=>{
     var result = null
     try{
         console.log(req.body)
@@ -208,58 +209,117 @@ app.post("/register", async (req, res) => {
       res.status(201).json(user);
     } catch (err) {
       console.log(err);
+      res.sendStatus(500)
     }
-  });
-  
-  app.post("/login", async (req, res) => {
-    try {
-      // Get user input
-      const { email, password } = req.body;
-  
-      // Validate user input
-      if (!(email && password)) {
-        res.status(400).send("All input is required");
-      }
-      // Validate if user exist in our database
-      const user = await User.findOne({ email });
-  
-      if (user && (await bcrypt.compare(password, user.password))) {
-        // Create token
-        const token = jwt.sign(
-          { user_id: user._id, email },
-          process.env.TOKEN_KEY,
-          {
-            expiresIn: "2h",
-          }
-        );
-  
-        // save user token
-        user.token = token;
-  
-        // user
-        res.status(200).json(user);
-      }
+});
+
+app.post("/login", async (req, res) => {
+  try {
+    // Get user input
+    const { email, password } = req.body;
+
+    // Validate user input
+    if (!(email && password)) {
+      res.status(400).send("All input is required");
+    }
+    // Validate if user exist in our database
+    const user = await User.findOne({ email });
+
+    if (user && (await bcrypt.compare(password, user.password))) {
+      // Create token
+      const token = jwt.sign(
+        { user_id: user._id, email },
+        process.env.TOKEN_KEY,
+        {
+          expiresIn: "2h",
+        }
+      );
+
+      // save user token
+      user.token = token;
+
+      // user
+      res.status(200).json(user);
+    }else{
       res.status(400).send("Invalid Credentials");
-    } catch (err) {
-      console.log(err);
     }
+  } catch (err) {
+    console.log(err);
+    res.sendStatus(500)
+  }
+});
+
+app.post("/smsLog", async (req, res) => {
+  try {
+    var status_ = req.body.status
+    var start = new Date(req.body.start+'T00:00:00.000Z').toISOString()
+    var end = new Date(req.body.end+'T23:59:59.999Z').toISOString()
+
+    // Validate if user exist in our database
+    const smsLog = await SmsLog.find({status: status_, created_at: { $gte: start, $lte: end }});
+    if (smsLog && smsLog.length) {
+      res.status(200).json(smsLog);
+    }else{
+      res.status(200).send("No SMS log recoreded.");
+    }
+    
+  } catch (err) {
+    console.log(err);
+    res.sendStatus(500)
+  }
+});
+
+app.get("/welcome", auth, (req, res) => {
+  res.status(200).send("Welcome to acs SMS gateway 🙌 ");
+});
+
+// This should be the last route else any after it won't work
+app.use("*", (req, res) => {
+  res.status(404).json({
+    success: "false",
+    message: "Page not found",
+    error: {
+      statusCode: 404,
+      message: "You reached a route that is not defined on this server",
+    },
   });
-  
-  app.get("/welcome", auth, (req, res) => {
-    res.status(200).send("Welcome to acs SMS gateway 🙌 ");
-  });
-  
-  // This should be the last route else any after it won't work
-  app.use("*", (req, res) => {
-    res.status(404).json({
-      success: "false",
-      message: "Page not found",
-      error: {
-        statusCode: 404,
-        message: "You reached a route that is not defined on this server",
-      },
-    });
-  });
-  
-  module.exports = app;
+});
+
+//Publish a failed message every 30 minutes. 
+setInterval(async function() {
+  var result = null
+  try{
+    let currentDate = new Date().toISOString();
+    // Find all failed messages that reached their retry time
+    const faildMessages = await SmsLog.find({ status: 1,  retry_at: { $lte: currentDate}});
+    if(faildMessages && faildMessages.length){
+      console.log("failed message",faildMessages)
+      var arr = []
+      var ids = []
+      faildMessages.forEach(async faildMessage =>{
+          arr.push([faildMessage.phone, faildMessage.message])
+          ids.push(faildMessage._id)
+      });
+      result = await depositToQueue(arr)
+      //update the messages status to retried
+      if(result){
+        await SmsLog.updateMany({_id: {$in: ids}}, {status: 2}, 
+        function (err, docs) {
+          if (err){
+              console.log(err)
+          }
+          else{
+              console.log("Updated Docs : ", docs);
+          }
+        });
+      }
+    }else{
+      console.log("no failed message")
+    }
+  } catch (err) {
+    console.log(err);
+  }
+}, (1000*60*30));
+
+module.exports = app;
 

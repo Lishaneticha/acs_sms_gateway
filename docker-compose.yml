@@ -1,6 +1,24 @@
 version: '3.0'
 
+volumes:
+  mongodb:
+
 services: 
+
+  rabbitmq:
+    container_name: acs-sms-gateway-rabbitmq
+    image: rabbitmq:3-management-alpine
+    ports: 
+      - "15672:15672"
+      - "15671:15671"
+      - "5672:5672"
+    networks:
+      - sms-network
+    healthcheck:
+      test: [ "CMD", "nc", "-z", "localhost", "5672" ]
+      interval: 5s
+      timeout: 15s
+      retries: 1
 
   app:
     build: 
@@ -9,27 +27,24 @@ services:
     container_name: acs-sms-gateway
     networks:
       - sms-network
-    volumes:
-      - ./:/acs-sms-gateway
-      - /acs-sms-gateway/node_modules
     ports:
       - "23002:23002"
     depends_on:
         - rabbitmq
     restart: always
 
-  rabbitmq:
-    container_name: acs-sms-gateway-rabbitmq
-    tty: true
-    image: rabbitmq:3-management
+  mongo:
+    image: mongo
+    container_name: acs-sms-gateway-mongo
     ports: 
-      - "15672:15672"
-      - "15671:15671"
-      - "5672:5672"
+      - "27017:27017"
     volumes:
-      - ./rabbitmq/lib:/var/lib/rabbitmq
+      - mongodb:/data/db 
     networks:
       - sms-network
+    logging:
+      driver: none
+    restart: always
     
 networks:
   sms-network:

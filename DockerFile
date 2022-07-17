@@ -6,12 +6,8 @@ RUN mkdir -p /acs-sms-gateway
 RUN rm -r /acs-sms-gateway
 RUN mkdir -p /acs-sms-gateway
 
-RUN npm install nodemon -g
-
 WORKDIR /acs-sms-gateway
-RUN rm -rf node_modules
-COPY package.json /acs-sms-gateway
-RUN npm install
+COPY node_modules /acs-sms-gateway
 
 COPY . .
 
