@@ -3,7 +3,7 @@ var smpp = require("smpp");
 var moment = require('moment');
 const controller = require('./smsLogController');
 
-exports.sendSMS = function (recipient, message){
+exports.sendSMS = async (recipient, message)=>{
     try {
         // connectionIp: remote Ip for sms
         // remotePort remote port
@@ -109,7 +109,7 @@ exports.sendSMS = function (recipient, message){
                                     // var shortMessage = pdu.short_message;
                                     console.log('Received DR ...');
                                     session.send(pdu.response());
-                                    controller.createSMSLog(recipient, message, 3, retry_at, info.parts.length)
+                                    controller.createSMSLog(recipient, part.content, 3, retry_at, info.parts.length)
                                 }
                             }
                         });
