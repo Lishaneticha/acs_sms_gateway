@@ -13,7 +13,7 @@ exports.createSMSLog = async (phone, message, status, retry_at, part_size)=>{
           part_size: part_size
         });
     
-        console.log(smsLog)
+        // console.log(smsLog)
       } catch (err) {
         console.log(err);
       }

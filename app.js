@@ -24,11 +24,11 @@ const Worker = {};
 const queue = 'acs_sms_messages';
 const amqp = require('amqplib/callback_api');
 
-function doWork(rawData){
+async function doWork(rawData){
   if(rawData) {
     try{
       let json = JSON.parse(rawData);
-      controller.sendSMS(json[0],json[1])
+      await controller.sendSMS(json[0],json[1])
     }catch(e){
       console.log(`There was an error in queue ${queue}>> `,e);
      }
@@ -82,9 +82,9 @@ amqp.connect(RABBIT_URI, function(error0, connection) {
       channel.assertQueue(queue, {
         durable: false
       });
-       channel.consume(queue, function(msg) {
+       channel.consume(queue, async function(msg) {
         console.log(" [x] Received %s", msg.content.toString());
-        doWork(msg.content.toString());
+        await doWork(msg.content.toString());
         //wait and requeue for error
       }, {
            noAck: true
@@ -153,7 +153,7 @@ app.post("/sendBulkSMS", async (req, res)=>{
         }else{
             var arr = []
             phones.forEach(async phone =>{
-                arr.push([phone, message])
+                if(!(phone == "") && phone) arr.push([phone, message])
             });
             result = await depositToQueue(arr)
         }
