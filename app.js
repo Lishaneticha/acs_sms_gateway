@@ -269,6 +269,26 @@ app.post("/smsLog", async (req, res) => {
   }
 });
 
+app.post("/smsCount", async (req, res) => {
+  try {
+    var status_ = req.body.status
+    var start = new Date(req.body.start+'T00:00:00.000Z').toISOString()
+    var end = new Date(req.body.end+'T23:59:59.999Z').toISOString()
+
+    // Validate if user exist in our database
+    const smsCount = await SmsLog.count({status: status_, created_at: { $gte: start, $lte: end }});
+    if (smsCount > 0) {
+      res.status(200).json(smsCount);
+    }else{
+      res.status(200).send("No SMS log recoreded.");
+    }
+    
+  } catch (err) {
+    console.log(err);
+    res.sendStatus(500)
+  }
+});
+
 app.get("/welcome", auth, (req, res) => {
   res.status(200).send("Welcome to acs SMS gateway 🙌 ");
 });
