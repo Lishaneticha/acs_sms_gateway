@@ -14,16 +14,14 @@ services:
       - "5672:5672"
     networks:
       - sms-network
-    healthcheck:
-      test: [ "CMD", "nc", "-z", "localhost", "5672" ]
-      interval: 5s
-      timeout: 15s
-      retries: 1
+    volumes:
+      - '~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/mnesia/'
+    restart: always
 
   app:
     build: 
       context: ./
-    command: bash -c "npm i && node index.js"
+    command: bash -c "node index.js"
     container_name: acs-sms-gateway
     networks:
       - sms-network
