@@ -13,6 +13,8 @@ const User = require("./model/user");
 const SmsLog = require("./model/smsLog");
 const auth = require("./middleware/auth");
 
+var uuid = require('uuid');
+
 const app = express();
 
 app.use(express.json())
@@ -35,16 +37,17 @@ async function doWork(rawData){
   }
 }
 
-async function findAndSendSMS(){
+async function findAndSendSMS(request_id){
   try{
     // Find all new messages that reached their retry time
-    const newMessages = await SmsLog.find({ status: 5});
+    const newMessages = await SmsLog.find({status: 5, req_id: request_id});
     if(newMessages && newMessages.length){
       var arr = []
       newMessages.forEach(async newMessage =>{
           arr.push([newMessage._id, newMessage.phone, newMessage.message])
       });
-      await doWork(arr)
+
+      await doWork(arr) 
       
     }else{
       console.log("no new message")
@@ -65,6 +68,7 @@ app.get("/init",async (req,res)=>{
 })
 
 app.get("/sendSMS",async (req,res)=>{
+  var request_id = uuid.v1()
     try{
         //console.log("aid: "+req.query.aid, "pin: "+req.query.pin, "mnumber: "+req.query.mnumber, "signature: "+req.query.signature, "message: "+req.query.message)
         console.log(req.query)
@@ -73,9 +77,9 @@ app.get("/sendSMS",async (req,res)=>{
         if(!phone || phone == "" || !message || message == "") {
             res.json({"responsecode": "1","response": "phone and message required"})
         }else{
-          await smsLogController.createSMSLog(phone, message, 5).then((result) =>{
+          await smsLogController.createSMSLog(phone, message, 5, request_id).then((result) =>{
             res.json({"responsecode": "0","response": result})
-            findAndSendSMS()
+            findAndSendSMS(request_id)
           }).catch((result) =>{
             console.log(result)
             res.sendStatus(500)
@@ -88,6 +92,7 @@ app.get("/sendSMS",async (req,res)=>{
 })
 
 app.post("/sendSMS",async (req,res)=>{
+  var request_id = uuid.v1()
     try{
         console.log(req.body)
         var phone = req.body.recipient
@@ -95,9 +100,9 @@ app.post("/sendSMS",async (req,res)=>{
         if(!phone || phone == "" || !message || message == "") {
             res.json({"responsecode": "1","response": "phone and message required"})
         }else{
-          await smsLogController.createSMSLog(phone, message, 5).then((result) =>{
+          await smsLogController.createSMSLog(phone, message, 5,request_id).then((result) =>{
             res.json({"responsecode": "0","response": result})
-            findAndSendSMS()
+            findAndSendSMS(request_id)
           }).catch((result) =>{
             console.log(result)
             res.sendStatus(500)
@@ -110,6 +115,7 @@ app.post("/sendSMS",async (req,res)=>{
 })
 
 app.post("/sendBulkSMS", async (req, res)=>{
+  var request_id = uuid.v1()
     try{
         console.log(req.body)
         var phones = req.body.recipients
@@ -120,12 +126,12 @@ app.post("/sendBulkSMS", async (req, res)=>{
         }else{
             var arr = []
             phones.forEach(async phone_ =>{
-                if(!(phone_ == "") && phone_) arr.push({phone: phone_, message: message_, status: 5})
+                if(!(phone_ == "") && phone_) arr.push({phone: phone_, message: message_, status: 5, req_id: request_id})
             });
             if(arr.length > 0) {
-              dataBaseResult = await smsLogController.createBulkSMSLog(arr).then((result) =>{
+              await smsLogController.createBulkSMSLog(arr).then((result) =>{
                 res.json({"responsecode": "0","response": result})
-                findAndSendSMS()
+                findAndSendSMS(request_id)
               }).catch((result) =>{
                 console.log(result)
                 res.sendStatus(500)
