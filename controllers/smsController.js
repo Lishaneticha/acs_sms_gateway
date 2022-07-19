@@ -3,14 +3,14 @@ var smpp = require("smpp");
 var moment = require('moment');
 const controller = require('./smsLogController');
 
-exports.sendSMS = async (recipient, message)=>{
+exports.sendSMS = async (id, recipient, message)=>{
     try {
         // connectionIp: remote Ip for sms
         // remotePort remote port
         // username: tele username
         // password: tele's password
         // shortcode: company shortcode
-
+        // console.log(id)
         var connectionIp = config.connectionIp
         var remotePort = config.remotePort
         var username = config.username
@@ -55,7 +55,7 @@ exports.sendSMS = async (recipient, message)=>{
                                     console.log("message sent OK",recipient, part.content)
                                     // res.json({"responsecode": "0","response": "Success"})
                                     var retry_at = null
-                                    controller.createSMSLog(recipient, message, 0, retry_at, info.parts.length)
+                                    controller.updateSMSLog(id, 0, retry_at, info.parts.length)
                                     return true
                                 } else {
                                     console.log("PDU")
@@ -63,7 +63,7 @@ exports.sendSMS = async (recipient, message)=>{
                                     console.log("message sending failed",recipient);
                                     // res.json({"responsecode": "1","response": "Failed"})
                                     var retry_at = moment(new Date()).add(30, 'm').toDate();
-                                    controller.createSMSLog(recipient, message, 1, retry_at, info.parts.length)
+                                    controller.updateSMSLog(id, 1, retry_at, info.parts.length)
                                     session.destroy();
                                     return true
                                     // process.exit()
@@ -81,7 +81,7 @@ exports.sendSMS = async (recipient, message)=>{
                                     console.log("message sent OK",recipient, part.content)
                                     if(i == info.parts.length){
                                         var retry_at = null
-                                        controller.createSMSLog(recipient, message, 0, retry_at, info.parts.length)
+                                        controller.updateSMSLog(id, 0, retry_at, info.parts.length)
                                     }
                                     return true
                                 } else {
@@ -92,7 +92,7 @@ exports.sendSMS = async (recipient, message)=>{
                                     // res.json({"responsecode": "1","response": "Failed"})
                                     if(i == info.parts.length) {
                                         var retry_at = moment(new Date()).add(30, 'm').toDate();
-                                        controller.createSMSLog(recipient, message, 1, retry_at, info.parts.length)
+                                        controller.updateSMSLog(id, 1, retry_at, info.parts.length)
                                     }
                                     session.destroy();
                                     return true
@@ -109,7 +109,7 @@ exports.sendSMS = async (recipient, message)=>{
                                     // var shortMessage = pdu.short_message;
                                     console.log('Received DR ...');
                                     session.send(pdu.response());
-                                    controller.createSMSLog(recipient, part.content, 3, retry_at, info.parts.length)
+                                    controller.updateSMSLog(id, 3, retry_at, info.parts.length)
                                 }
                             }
                         });
@@ -124,7 +124,7 @@ exports.sendSMS = async (recipient, message)=>{
                                 // res.json({"responsecode": "1","response": e.code})
                                 if(i == info.parts.length) {
                                     var retry_at = moment(new Date()).add(30, 'm').toDate();
-                                    controller.createSMSLog(recipient, message, 1, retry_at, info.parts.length)
+                                    controller.updateSMSLog(id, 1, retry_at, info.parts.length)
                                 }
                             } else if (e.code === "ECONNREFUSED") {
                                 // CONNECTION REFUSED
@@ -133,7 +133,7 @@ exports.sendSMS = async (recipient, message)=>{
                                 // res.json({"responsecode": "1","response": e.code})
                                 if(i == info.parts.length) {
                                     var retry_at = moment(new Date()).add(30, 'm').toDate();
-                                    controller.createSMSLog(recipient, message, 1, retry_at, info.parts.length)
+                                    controller.updateSMSLog(id, 1, retry_at, info.parts.length)
                                 }
                             } else {
                                 // OTHER ERROR
@@ -142,7 +142,7 @@ exports.sendSMS = async (recipient, message)=>{
                                 // res.json({"responsecode": "1","response": e.code})
                                 if(i == info.parts.length) {
                                     var retry_at = moment(new Date()).add(30, 'm').toDate();
-                                    controller.createSMSLog(recipient, message, 1, retry_at, info.parts.length)
+                                    controller.updateSMSLog(id, 1, retry_at, info.parts.length)
                                 }
                             }
                         });
@@ -152,14 +152,14 @@ exports.sendSMS = async (recipient, message)=>{
                         i++
                         if(i == info.parts.length) {
                             var retry_at = moment(new Date()).add(30, 'm').toDate();
-                            controller.createSMSLog(recipient, message, 1, retry_at, info.parts.length)
+                            controller.updateSMSLog(id, 1, retry_at, info.parts.length)
                         }
                         session.destroy();
                         return false
                     }
                 }catch(ex){
                     var retry_at = moment(new Date()).add(30, 'm').toDate();
-                    controller.createSMSLog(recipient, message, 1, retry_at, info.parts.length)
+                    controller.updateSMSLog(id, 1, retry_at, info.parts.length)
                     console.log(ex)
                     return false
                 }
@@ -167,13 +167,13 @@ exports.sendSMS = async (recipient, message)=>{
                 
             }else{
                 var retry_at = moment(new Date()).add(30, 'm').toDate();
-                controller.createSMSLog(recipient, message, 1, retry_at, info.parts.length)
+                controller.updateSMSLog(id, 1, retry_at, info.parts.length)
                 return false
             }
         });
     } catch (ex) {
         var retry_at = moment(new Date()).add(30, 'm').toDate();
-        controller.createSMSLog(recipient, message, 1, retry_at, info.parts.length)
+        controller.updateSMSLog(id, 1, retry_at, info.parts.length)
         console.log(ex)
         return false
     }

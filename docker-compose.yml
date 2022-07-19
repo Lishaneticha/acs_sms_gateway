@@ -4,20 +4,6 @@ volumes:
   mongodb:
 
 services: 
-
-  rabbitmq:
-    container_name: acs-sms-gateway-rabbitmq
-    image: rabbitmq:3-management-alpine
-    ports: 
-      - "15672:15672"
-      - "15671:15671"
-      - "5672:5672"
-    networks:
-      - sms-network
-    volumes:
-      - '~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/mnesia/'
-    restart: always
-
   app:
     build: 
       context: ./
@@ -28,7 +14,7 @@ services:
     ports:
       - "23002:23002"
     depends_on:
-        - rabbitmq
+        - mongo
     restart: always
 
   mongo:
