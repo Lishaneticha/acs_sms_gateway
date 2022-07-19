@@ -1,9 +1,9 @@
 
 const SmsLog = require("../model/smsLog");
 
-exports.createSMSLog = async (phone, message, status)=>{
+exports.createSMSLog = async (phone, message, status, request_id)=>{
   return new Promise(async function(resolve, reject) {
-    await SmsLog.create({phone: phone, message: message, status: status}).then(function(){
+    await SmsLog.create({phone: phone, message: message, status: status, req_id: request_id}).then(function(){
         console.log("Single Data created")  // Success
         resolve('Success')
     }).catch(function(error){

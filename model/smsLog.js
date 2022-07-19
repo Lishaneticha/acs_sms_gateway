@@ -6,7 +6,8 @@ const smsLogSchema = new mongoose.Schema({
   status: { type: Number, default: null },
   created_at: { type : Date, default: Date.now },
   retry_at: { type: Date, default: null },
-  part_size: { type: Number, default: null }
+  part_size: { type: Number, default: null },
+  req_id: { type: String, default: null }
 });
 
 module.exports = mongoose.model("smsLog", smsLogSchema);
