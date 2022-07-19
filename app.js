@@ -1,10 +1,10 @@
 require("dotenv").config();
 require("./config/database").connect();
 const express = require("express");
-const { RABBIT_URI } = process.env;
 const { API_PORT } = process.env;
 const port = process.env.PORT || API_PORT;
 const controller = require('./controllers/smsController');
+const smsLogController = require('./controllers/smsLogController');
 
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -20,77 +20,39 @@ var bodyParser = require('body-parser');
 app.use(bodyParser.json({limit: "100mb"}));
 app.use(bodyParser.urlencoded({limit: "100mb", extended: true, parameterLimit:100000}));
 
-const Worker = {};
-const queue = 'acs_sms_messages';
+const queue = 'acs_sms_messages_1';
 const amqp = require('amqplib/callback_api');
 
 async function doWork(rawData){
   if(rawData) {
     try{
-      let json = JSON.parse(rawData);
-      await controller.sendSMS(json[0],json[1])
+      rawData.forEach(async raw =>{
+        await controller.sendSMS(raw[0],raw[1],raw[2])
+      });
     }catch(e){
-      console.log(`There was an error in queue ${queue}>> `,e);
+      console.log(`There was an error >> `,e);
      }
   }
 }
 
-//Send sms to queue
-function depositToQueue(messages){
-
-    return new Promise(function(resolve, reject) {
-
-        amqp.connect(RABBIT_URI, function(error0, connection) {
-            if (error0) {
-                throw error0;
-            }
-            connection.createChannel(function(error1, channel) {
-                if (error1) {
-                    resolve('Fail')
-                    throw error1;
-                }
-
-                channel.assertQueue(queue, {
-                    durable: false
-                });
-                
-                for(const msg of messages) {
-                    var json = JSON.stringify(msg);
-                    channel.sendToQueue(queue, Buffer.from(json), {persistent: true});
-                    console.log(" [x] Sent %s", json);
-                }
-
-                resolve('Success')
-
-            });
-            setTimeout(function() {
-                connection.close();
-            }, 500);
-        });
-    })
-}
-
-//Receive from queue and send SMS
-amqp.connect(RABBIT_URI, function(error0, connection) {
-    if (error0) {
-      throw error0;
+async function findAndSendSMS(){
+  try{
+    // Find all new messages that reached their retry time
+    const newMessages = await SmsLog.find({ status: 5});
+    if(newMessages && newMessages.length){
+      var arr = []
+      newMessages.forEach(async newMessage =>{
+          arr.push([newMessage._id, newMessage.phone, newMessage.message])
+      });
+      await doWork(arr)
+      
+    }else{
+      console.log("no new message")
     }
-    connection.createChannel(function(error1, channel) {
-      if (error1) {
-        throw error1;
-      }
-      channel.assertQueue(queue, {
-        durable: false
-      });
-       channel.consume(queue, async function(msg) {
-        console.log(" [x] Received %s", msg.content.toString());
-        await doWork(msg.content.toString());
-        //wait and requeue for error
-      }, {
-           noAck: true
-      });
-    });
-  });
+  } catch (err) {
+    console.log(err);
+  }
+}
 
 app.get("/init",async (req,res)=>{
     try{
@@ -103,65 +65,77 @@ app.get("/init",async (req,res)=>{
 })
 
 app.get("/sendSMS",async (req,res)=>{
-    var result = null
     try{
         //console.log("aid: "+req.query.aid, "pin: "+req.query.pin, "mnumber: "+req.query.mnumber, "signature: "+req.query.signature, "message: "+req.query.message)
         console.log(req.query)
         var phone = req.query.mnumber
         var message = req.query.message
-        if(!phone || !message) {
+        if(!phone || phone == "" || !message || message == "") {
             res.json({"responsecode": "1","response": "phone and message required"})
         }else{
-            var arr = [[phone, message]]
-            result = await depositToQueue(arr)
+          await smsLogController.createSMSLog(phone, message, 5).then((result) =>{
+            res.json({"responsecode": "0","response": result})
+            findAndSendSMS()
+          }).catch((result) =>{
+            console.log(result)
+            res.sendStatus(500)
+          })
         }
     }catch(ex){
         console.log(ex)
         res.sendStatus(500)
     }
-    if(result) res.json({"responsecode": "0","response": result})
 })
 
 app.post("/sendSMS",async (req,res)=>{
-    var result = null
     try{
         console.log(req.body)
         var phone = req.body.recipient
         var message = req.body.message
-        if(!phone || !message) {
+        if(!phone || phone == "" || !message || message == "") {
             res.json({"responsecode": "1","response": "phone and message required"})
         }else{
-            var arr = [[phone, message]]
-            result = await depositToQueue(arr)
+          await smsLogController.createSMSLog(phone, message, 5).then((result) =>{
+            res.json({"responsecode": "0","response": result})
+            findAndSendSMS()
+          }).catch((result) =>{
+            console.log(result)
+            res.sendStatus(500)
+          })
         }
     }catch(ex){
         console.log(ex)
         res.sendStatus(500)
     }
-    if(result) res.json({"responsecode": "0","response": result})
 })
 
 app.post("/sendBulkSMS", async (req, res)=>{
-    var result = null
     try{
         console.log(req.body)
         var phones = req.body.recipients
-        var message = req.body.message
+        var message_ = req.body.message
 
-        if(!phones || !message) {
+        if(!phones || phones.length == 0 || !message_ || message_ == "") {
             res.json({"responsecode": "1","response": "phones and message required"})
         }else{
             var arr = []
-            phones.forEach(async phone =>{
-                if(!(phone == "") && phone) arr.push([phone, message])
+            phones.forEach(async phone_ =>{
+                if(!(phone_ == "") && phone_) arr.push({phone: phone_, message: message_, status: 5})
             });
-            result = await depositToQueue(arr)
+            if(arr.length > 0) {
+              dataBaseResult = await smsLogController.createBulkSMSLog(arr).then((result) =>{
+                res.json({"responsecode": "0","response": result})
+                findAndSendSMS()
+              }).catch((result) =>{
+                console.log(result)
+                res.sendStatus(500)
+              })
+            }
         }
     }catch(ex){
         console.log(ex)
         res.sendStatus(500)
     }
-    if(result) res.json({"responsecode": "0","response": result})
 })
 
 app.post("/register", async (req, res) => {
@@ -307,32 +281,17 @@ app.use("*", (req, res) => {
 
 //Publish a failed message every 30 minutes. 
 setInterval(async function() {
-  var result = null
   try{
     let currentDate = new Date().toISOString();
     // Find all failed messages that reached their retry time
     const faildMessages = await SmsLog.find({ status: 1,  retry_at: { $lte: currentDate}});
     if(faildMessages && faildMessages.length){
-      console.log("failed message",faildMessages)
+      //console.log("failed message",faildMessages)
       var arr = []
-      var ids = []
       faildMessages.forEach(async faildMessage =>{
-          arr.push([faildMessage.phone, faildMessage.message])
-          ids.push(faildMessage._id)
+          arr.push([faildMessage._id, faildMessage.phone, faildMessage.message])
       });
-      result = await depositToQueue(arr)
-      //update the messages status to retried
-      if(result){
-        await SmsLog.updateMany({_id: {$in: ids}}, {status: 2}, 
-        function (err, docs) {
-          if (err){
-              console.log(err)
-          }
-          else{
-              console.log("Updated Docs : ", docs);
-          }
-        });
-      }
+      await doWork(arr)
     }else{
       console.log("no failed message")
     }
