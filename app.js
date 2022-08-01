@@ -13,6 +13,8 @@ const User = require("./model/user");
 const SmsLog = require("./model/smsLog");
 const auth = require("./middleware/auth");
 
+var moment = require('moment');
+
 var uuid = require('uuid');
 
 const app = express();
@@ -273,6 +275,23 @@ app.get("/welcome", auth, (req, res) => {
   res.status(200).send("Welcome to acs SMS gateway 🙌 ");
 });
 
+app.post("/sendTest",async (req,res)=>{
+  var request_id = uuid.v1()
+    try{
+        console.log("test created")
+        await smsLogController.createSMSLog("phone", "message", 5,request_id).then((result) =>{
+          res.json({"responsecode": "0","response": result})
+          
+        }).catch((result) =>{
+          console.log(result)
+          res.sendStatus(500)
+        })
+    }catch(ex){
+        console.log(ex)
+        res.sendStatus(500)
+    }
+})
+
 // This should be the last route else any after it won't work
 app.use("*", (req, res) => {
   res.status(404).json({
@@ -289,8 +308,9 @@ app.use("*", (req, res) => {
 setInterval(async function() {
   try{
     let currentDate = new Date().toISOString();
+    let createdDate = moment(new Date()).subtract(15, 'm').toDate().toISOString();
     // Find all failed messages that reached their retry time
-    const faildMessages = await SmsLog.find({ status: 1,  retry_at: { $lte: currentDate}});
+    const faildMessages = await SmsLog.find({$or:[{status: 1,  retry_at: { $lte: currentDate}}, { status: 5,  created_at: { $lte: createdDate}}]});
     if(faildMessages && faildMessages.length){
       //console.log("failed message",faildMessages)
       var arr = []

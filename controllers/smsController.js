@@ -90,10 +90,8 @@ exports.sendSMS = async (id, recipient, message)=>{
                                     console.log(pdu)
                                     console.log("message sending failed",recipient);
                                     // res.json({"responsecode": "1","response": "Failed"})
-                                    if(i == info.parts.length) {
-                                        var retry_at = moment(new Date()).add(30, 'm').toDate();
-                                        controller.updateSMSLog(id, 1, retry_at, info.parts.length)
-                                    }
+                                    var retry_at = moment(new Date()).add(30, 'm').toDate();
+                                    controller.updateSMSLog(id, 1, retry_at, info.parts.length)
                                     session.destroy();
                                     return true
                                     // process.exit()
