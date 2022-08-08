@@ -24,6 +24,9 @@ var info1 = gsm('Dear Lishan ET,\n\nThis is to inform you that your account 0000
 // info.parts.forEach(async function(part) {
 //   console.log(part.content)
 // })
+
+console.log(info)
+
 var part_id = 0
 var concat_ref = this.concat_ref++
 info.parts.forEach(async function(part) {

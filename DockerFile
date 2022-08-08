@@ -11,5 +11,5 @@ COPY node_modules /acs-sms-gateway
 
 COPY . .
 
-EXPOSE 23002
+EXPOSE 5000
 EXPOSE 6379
