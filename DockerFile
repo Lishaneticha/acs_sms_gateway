@@ -7,9 +7,7 @@ RUN rm -r /acs-sms-gateway
 RUN mkdir -p /acs-sms-gateway
 
 WORKDIR /acs-sms-gateway
-COPY node_modules /acs-sms-gateway
 
 COPY . .
 
 EXPOSE 5000
-EXPOSE 6379

@@ -16,6 +16,15 @@ services:
         - mongo
     restart: always
 
+  app_sms_falure_handler:
+    image: 
+    command: bash -c "node app.js"
+    networks:
+      - sms-network
+    depends_on:
+        - mongo
+    restart: always
+
   mongo:
     image: mongo
     container_name: acs-sms-gateway-mongo

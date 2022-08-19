@@ -304,27 +304,5 @@ app.use("*", (req, res) => {
   });
 });
 
-//Publish a failed message every 30 minutes. 
-setInterval(async function() {
-  try{
-    let currentDate = new Date().toISOString();
-    let createdDate = moment(new Date()).subtract(15, 'm').toDate().toISOString();
-    // Find all failed messages that reached their retry time
-    const faildMessages = await SmsLog.find({$or:[{status: 1,  retry_at: { $lte: currentDate}}, { status: 5,  created_at: { $lte: createdDate}}]});
-    if(faildMessages && faildMessages.length){
-      //console.log("failed message",faildMessages)
-      var arr = []
-      faildMessages.forEach(async faildMessage =>{
-          arr.push([faildMessage._id, faildMessage.phone, faildMessage.message])
-      });
-      await doWork(arr)
-    }else{
-      console.log("no failed message")
-    }
-  } catch (err) {
-    console.log(err);
-  }
-}, (1000*60*30));
-
 module.exports = app;
 
